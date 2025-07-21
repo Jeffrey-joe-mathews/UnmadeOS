@@ -1,6 +1,6 @@
 ; Upon booting, a computer first enters the BIOS(Basic Input Output System)
 ; what a bios does is, it seraches throught the memory of bootable debices and loads it into the memory of 0x7c00 which is the Origin(ORG)
-;   and then the bootloader at 0x700c checks for thie signature 0xAA55 to verify if it is a bootable image.
+;   and then the bootloader at 0x7c00 checks for thie signature 0xAA55 to verify if it is a bootable image.
 
 BITS 16                     ; Tells the assembler to generate 16-bit code; required for real mode execution
 ORG  0x7c00                 ; sets the origin at the address... so that all operation start from that address
