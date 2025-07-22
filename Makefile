@@ -4,10 +4,27 @@ SRC=src
 
 all: $(BUILD)/main.img
 
-$(BUILD)/main.bin : $(SRC)/main.asm
-	@mkdir -p $(BUILD)										# we silence the output by using @ because it is repetitive
-	$(ASM) -f bin $(SRC)/main.asm -o $(BUILD)/main.bin
+#
+### Bootloader
+#
+bootloader: $(BUILD)/bootloader.bin
+$(BUILD)/bootloader.bin : $(SRC)/bootloader/boot.asm
+	@mkdir -p $(BUILD)
+	$(ASM) -f bin $(SRC)/bootloader/boot.asm -o $(BUILD)/bootloader.bin
 
-$(BUILD)/main.img : $(BUILD)/main.bin
-	cp $(BUILD)/main.bin $(BUILD)/main.img
-	truncate -s 1440k $(BUILD)/main.img
+#
+### Kernel
+#
+kernel: $(BUILD)/kernel.bin
+$(BUILD)/kernel.bin : $(SRC)/kernel/main.asm
+	$(ASM) -f bin $(SRC)/kernel/main.asm -o $(BUILD)/kernel.bin
+
+#
+### Floppy disk image
+#
+floppyImage: $(BUILD)/main.img
+$(BUILD)/main.img : bootloader kernel
+	dd if=/dev/zero of=$(BUILD)/main.img bs=512 count=2880
+	mkfs.fat -F 12 -n "UNMADEOS" $(BUILD)/main.img
+	dd if=$(BUILD)/bootloader.bin of=$(BUILD)/main.img conv=notrunc
+	mcopy -i $(BUILD)/main.img $(BUILD)/kernel.bin "::kernel.bin"
