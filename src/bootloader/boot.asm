@@ -10,7 +10,7 @@ ORG  0x7c00                 ; sets the origin at the address... so that all oper
 JMP SHORT main              ; takes 2 bytes to jump rather than 3
 NOP                         ; No-OPeration assembler uses this as a 1 byte placeholder
 ; OEM name                  ; these 2 lines align with the expected layout of the FAT12 spec
-bdb_oem:    DB  "BANANA07"  ; Just for imformational branding. the name does'nt matter as long as it is 4 bytes
+bdb_oem:    DB  "BANANA07"  ; Just for imformational branding. the name does'nt matter as long as it is 8 bytes
 
 ; BIOS Parameter Block (BPB)
 bytesPerSector      DW 512          ; total number of bytes in one sector(512 for floppy)
@@ -41,7 +41,7 @@ main:
     MOV es, ax              ; assigns the etra segment to zero (for doing operations like MOV)
     MOV ss, ax              ; assigns stack segment to zero (for stack operations)
 
-    MOV sp, 0x7b00          ; assigns the stack pointer to an arbitrary address away from the memory (stack memory offset)
+    MOV sp, 0x7b00          ; assigns the stack pointer to an arbitrary address away from the bootloader space (stack memory offset)
     MOV si, os_boot_msg     ; initializes the address of the os_boot_msg
     CALL print              
     HLT
@@ -60,7 +60,7 @@ print_loop:
     JZ print_end            ; Jump if string end has been reached
 
     MOV ah, 0x0e            ; BIOS teletype function code for printing onto the BIOS
-    MOV bh, 0               ; sets the page number. useful when working with many monitors or pages
+    MOV bh, 0               ; sets the page number. useful when working with many buffers or pages
     INT 0x10                ; sets a BIOS video interrupt
 
     JMP print_loop          ; loops
