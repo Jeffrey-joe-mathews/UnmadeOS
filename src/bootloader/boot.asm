@@ -42,12 +42,92 @@ main:
     MOV ss, ax              ; assigns stack segment to zero (for stack operations)
 
     MOV sp, 0x7b00          ; assigns the stack pointer to an arbitrary address away from the bootloader space (stack memory offset)
+
+    MOV dl, [driveNumber]
+    MOV ax, 1               ; here it refers to the first lba index to be converted
+    MOV cl, 1               ; refers the sector number
+    MOV bx, 0x7e00          ; just storing a random memory buffer's address
+    CALL disk_read
+
     MOV si, os_boot_msg     ; initializes the address of the os_boot_msg
     CALL print              
     HLT
 
 halt:
     JMP halt 
+
+; input -> lba index in ax
+; output -> cx[0-5](sector number) and cx[6-15](cylinder) and head in dh
+lba_to_chs:
+    PUSH ax
+    PUSH dx
+
+    XOR  dx, dx
+    ; right now LBA is at ax and dx evaluates to 0. Find the sector number
+    DIV  word [sectorsPerTrack]
+    INC  dx
+    MOV  cx, dx             ; store the sector number into 16-bit cx temporarily
+ 
+    XOR  dx, dx
+    DIV  word [numHead]
+    MOV  dh, dl             ; MOVe in the value of head
+    SHL  ah, 6
+    OR   cl, ah
+
+    POP  ax
+    MOV  dl, al
+    POP  ax
+    RET
+
+disk_read:
+    PUSH ax                 ; Just saving all the registers that im going to use
+    PUSH bx
+    PUSH cx
+    PUSH dx
+    PUSH di
+    CALL lba_to_chs
+
+    MOV  ah, 0x2
+    ; MOV  bx, 0x7e00       ; Just know tht this is being used
+    MOV  di, 3
+
+retry:
+    STC                     ; sets the carry flag just in case the BIOS doesnt posess it
+    INT  0x13
+    JNC  done_read          ; jump if no carry was set
+
+    CALL disk_reset
+
+    DEC  di
+    TEST di, di
+    JNZ  retry
+    JMP fail_disk_read
+
+fail_disk_read:
+    MOV  si, read_failure
+    CALL print
+    HLT
+    JMP  halt
+
+disk_reset:
+    PUSH ax
+    PUSH dx
+    STC
+    MOV  ah, 0
+    MOV  dl, [driveNumber]  ; 0 for floppy, 1 for HDD
+    INT  0x13               ; disk reset interrupt
+    JC   fail_disk_read
+    POP  dx
+    POP  ax
+    RET
+
+done_read:
+    POP  di
+    POP  dx
+    POP  cx
+    POP  bx
+    POP  ax
+    RET
 
 print:
     PUSH si                 ; saves all the three register values just in case for future use
@@ -72,6 +152,7 @@ print_end:
     RET
 
 os_boot_msg: DB "Unmade OS :: initializing -> Hollow shell",10,0
+read_failure: DB "~~~FAILED TO READ DISK. IMAGE MAY BE CORRUPTED~~~",10,0
 
 TIMES 510-($-$$) DB 0       ; the bootloader must be exactly 512 bytes... 510 for code and data, 2 for signature
                             ; $$ is the address at the start of the file and $ is the current address
